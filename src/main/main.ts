@@ -69,7 +69,7 @@ ipcMain.handle('loadPipeJsonContent', () => {
   if (! fs.existsSync(pipeFilePath)) {
     try {
       fs.writeFileSync(pipeFilePath, '[]', 'utf8');
-      console.log('文本文件创建成功！');
+      // console.log('文本文件创建成功！');
     } catch (err) {
       console.error('创建文件时出错：', err);
     }
@@ -98,7 +98,7 @@ ipcMain.handle('delPipe', (event, item) => {
   fs.writeFileSync(pipeFilePath, JSON.stringify(content), 'utf8');
   return true
 })
-
+let pid = 0
 ipcMain.handle('startPipe', (event, item) => {
   const pipeConfig = JSON.parse(item);
   // const sshConfigFilePath = join(__dirname, 'config')
@@ -107,21 +107,34 @@ ipcMain.handle('startPipe', (event, item) => {
   const cmd = 'ssh -o ProxyCommand="nc -x 127.0.0.1:10801 %h %p" -vNL '  + pipeConfig.localPort + ':' + pipeConfig.remoteAddress + ' ' + pipeConfig.jumpAddress;
   // const pipeShellFilePath = join(__dirname, pipeConfig.localPort +'.sh')
   // fs.writeFileSync(pipeShellFilePath, cmd, 'utf8');
+  const batFilePath = 'C:\\Users\\Administrator\\faucet\\demo.bat'
 
-  exec("echo $USER", (error, stdout, stderr) => {
+   const child = exec(`ssh -vNL 27031:172.22.0.28:27017 root@43.133.61.138`, (error, stdout, stderr) => {
     if (error) {
-      console.error(`执行脚本时出错3: ${error.message}`);
+      console.error(`执行错误： ${error}`);
       return;
     }
-    console.log(`脚本执行成功，输出3: ${stdout}`);
+    console.log(`输出： ${stdout}`);
+    console.error(`错误输出： ${stderr}`);
   });
+  console.log(process.platform)
+  // 要执行的命令
+  // const command = 'start ' + batFilePath;
 
+// 开启进程
+//   const child = spawn(command);
 
+// 获取进程的pid
+  pid = child.pid as number;
+  console.log(`进程的pid为： ${pid}`);
+  // child.kill()
+  // process.kill(pid as number);
 
   return true;
 })
 
 ipcMain.handle('closePipe', (event, item) => {
-  const pipeConfig = JSON.parse(item);
+  console.log(`closePipe ${pid}`)
+  process.kill(pid as number);
   return true;
 })
