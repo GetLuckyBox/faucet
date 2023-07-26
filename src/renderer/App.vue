@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import Tabs from './components/Tabs.vue'
-import {reactive, ref} from "vue";
 
 
 

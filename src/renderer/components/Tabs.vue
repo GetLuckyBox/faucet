@@ -1,22 +1,41 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import type { TabsPaneContext } from 'element-plus'
+import { ref, reactive, toRefs } from 'vue'
+import { ElMessage } from 'element-plus'
+
+const tableData = ref([])
+const rowFormat = {
+  localPort: '', // 必填项
+  remoteAddress: '',// 必填项
+  jumpAddress: '',// 必填项
+  appType: '',// 筛选项
+  env: '',// 筛选项
+  area: '',// 筛选项
+  remark: '',
+}
+const form = reactive(rowFormat)
+const loadPipeJsonContent = async () => {
+  const content = await window.electronAPI.loadPipeJsonContent();
+  (content as object[]).forEach((item) => {
+    const temp = Object.assign({isClose: 0}, item);
+    tableData.value.push(temp as never);
+  })
+}
+loadPipeJsonContent()
 
 defineProps({
   msg: String,
 })
-
-import { exec }  from 'child_process';
-import {fa} from "element-plus/es/locale";
+let editItemIndex = 0
 let dialogFormVisible = ref(false)
 let dialogFormTitle = ref('新增隧道')
-const activeName = ref('first')
-const value1 = ref(true)
-const handleClick = (tab: TabsPaneContext, event: Event) => {
-  console.log(tab, event)
-}
 
-const handleEdit = (row: any) => {
+const handleEdit = (props: any) => {
+  if (props.row.isClose == 1) {
+    errorTips('隧道开启中不可编辑');
+    return;
+  }
+  editItemIndex = props.$index
+  const row = props.row
   dialogFormTitle.value = '编辑隧道'
   form.area = row.area
   form.appType = row.appType
@@ -27,99 +46,72 @@ const handleEdit = (row: any) => {
   form.remark = row.remark
   dialogFormVisible.value = true
 }
-const tableData = [
-  {
-    localPort: '63791',
-    remoteAddress: 'sdk-db.cegrizwp1nwf.ap-southeast-1.rds.amazonaws.com:3306',
-    jumpAddress: 'root@18.138.243.238',
-    appType: 'mongoDb',
-    env: '测试',
-    area: '国内',
-    remark: '手游',
-    isClose: 0,
-  },
-  {
-    localPort: '6379',
-    remoteAddress: 'redis',
-    jumpAddress: '测试',
-    appType: 'mysql',
-    env: '测试',
-    area: '海外',
-    remark: '推送',
-    isClose: 1,
-  },
-  {
-    localPort: '6379',
-    remoteAddress: 'redis',
-    jumpAddress: '测试',
-    appType: 'redis',
-    env: '测试',
-    area: '国内',
-    remark: '手游',
-    isClose: 0,
-  },
-  {
-    localPort: '6379',
-    remoteAddress: 'redis',
-    jumpAddress: '测试',
-    appType: 'mysql',
-    env: '测试',
-    area: '海外',
-    remark: '推送',
-    isClose: 1,
-  },
-  {
-    localPort: '6379',
-    remoteAddress: 'redis',
-    jumpAddress: '测试',
-    appType: 'redis',
-    env: '测试',
-    area: '国内',
-    remark: '手游',
-    isClose: 0,
-  },
-  {
-    localPort: '6379',
-    remoteAddress: 'redis',
-    jumpAddress: '测试',
-    appType: 'mysql',
-    env: '测试',
-    area: '海外',
-    remark: '推送',
-    isClose: 1,
-  },
-  {
-    localPort: '63791',
-    remoteAddress: 'sdk-db.cegrizwp1nwf.ap-southeast-1.rds.amazonaws.com:3306',
-    jumpAddress: 'root@18.138.243.238',
-    appType: 'mongoDb',
-    env: '测试',
-    area: '国内',
-    remark: '手游',
-    isClose: 0,
-  },
-  {
-    localPort: '6379',
-    remoteAddress: 'redis',
-    jumpAddress: '测试',
-    appType: 'mysql',
-    env: '测试',
-    area: '海外',
-    remark: '推送',
-    isClose: 1,
-  },
-]
+
+const errorTips = (msg: string) => {
+  ElMessage({
+    showClose: true,
+    message: msg,
+    type: 'error',
+  })
+}
+
+const handleDel = (props: any) => {
+  // 隧道开启中不可删除
+  if (props.row.isClose == 1) {
+    errorTips('隧道开启中不可删除');
+    return;
+  }
+  const index = props.$index;
+  window.electronAPI.delPipe(index);
+  (tableData.value as object[]).splice(index, 1);
+}
+
+const handlePipe = (row: any) => {
+  console.log(row)
+  const pipeConfigJsonStr = JSON.stringify(row)
+  if (row.isClose == 1) {
+    window.electronAPI.startPipe(pipeConfigJsonStr);
+  } else {
+    window.electronAPI.closePipe(pipeConfigJsonStr);
+  }
+}
+
+const handleCancelDig = () => {
+  editItemIndex = 0
+  dialogFormTitle.value = '新增隧道'
+  dialogFormVisible.value = false
+}
+
+const submit = () => {
+  for (const key in tableData.value) {
+    if ((tableData.value[key] as any).localPort == form.localPort) {
+      errorTips('本地端口不可重复');
+      return
+    }
+  }
+  const formData = Object.assign(reactive({}), reactive(toRefs(form)));
+  if (dialogFormTitle.value == '新增隧道') {
+
+    const formDataJsonStr = JSON.stringify(formData)
+    const addPipe = async () => {
+      return window.electronAPI.addPipe(formDataJsonStr);
+    }
+    addPipe();
+    (tableData.value as object[]).push(formData);
+  } else {
+    const formDataJsonStr = JSON.stringify({
+      index: editItemIndex,
+      row: form
+    })
+    window.electronAPI.editPipe(formDataJsonStr);
+    (tableData.value as object[])[editItemIndex] = formData;
+  }
+  dialogFormTitle.value = '新增隧道'
+  dialogFormVisible.value = false
+}
 
 const formLabelWidth = '80px'
-const form = reactive({
-  localPort: '', // 必填项
-  remoteAddress: '',// 必填项
-  jumpAddress: '',// 必填项
-  appType: '',// 筛选项
-  env: '',// 筛选项
-  area: '',// 筛选项
-  remark: '',
-})
+
 </script>
 
 <template>
@@ -127,13 +119,13 @@ const form = reactive({
   <el-dialog v-model="dialogFormVisible" :title=dialogFormTitle>
     <el-form :model="form">
       <el-form-item label="本地端口" :label-width="formLabelWidth">
-        <el-input v-model="form.localPort" autocomplete="off" />
+        <el-input v-model="form.localPort" autocomplete="off" placeholder="请输入本地端口,如6379" />
       </el-form-item>
       <el-form-item label="远程地址" :label-width="formLabelWidth">
-        <el-input v-model="form.remoteAddress" autocomplete="off" />
+        <el-input v-model="form.remoteAddress" autocomplete="off" placeholder="请输入远程地址,如10.1.2.108:3306" />
       </el-form-item>
       <el-form-item label="跳板地址" :label-width="formLabelWidth">
-        <el-input v-model="form.jumpAddress" autocomplete="off" />
+        <el-input v-model="form.jumpAddress" autocomplete="off" placeholder="请输入跳板地址,如root@81.58.243.238" />
       </el-form-item>
       <el-form-item label="备注" :label-width="formLabelWidth">
         <el-input v-model="form.remark" autocomplete="off" />
@@ -149,8 +141,8 @@ const form = reactive({
       </el-form-item>
     </el-form>
     <template #footer>
-        <el-button @click="dialogFormVisible = false">Cancel</el-button>
-        <el-button type="primary" @click="dialogFormVisible = false">
+        <el-button @click="handleCancelDig()">Cancel</el-button>
+        <el-button type="primary" @click="submit()">
           Confirm
         </el-button>
     </template>
@@ -172,7 +164,11 @@ const form = reactive({
               </el-row>
             </div>
             <el-button type="primary" size="small" @click="handleEdit(props)">编辑</el-button>
-            <el-button type="danger" size="small" style="margin-left: 20px" @click="handleClick">删除</el-button>
+              <el-popconfirm title="确认删除选中配置?" @confirm="handleDel(props)">
+                <template #reference>
+                  <el-button type="danger" size="small" style="margin-left: 20px">删除</el-button>
+                </template>
+              </el-popconfirm>
           </template>
         </el-table-column>
         <el-table-column prop="localPort" label="本地端口"  />
@@ -189,6 +185,7 @@ const form = reactive({
                 active-text="开"
                 inactive-value="0"
                 inactive-text="关"
+                @click="handlePipe(props.row)"
             />
           </template>
         </el-table-column>
