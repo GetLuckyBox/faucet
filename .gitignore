@@ -11,3 +11,5 @@ node_modules/
 *.cache
 *.sqlite3
 out/
+build/
+dist/
