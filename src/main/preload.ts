@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   delPipe: (row: any) => ipcRenderer.invoke('delPipe', row),
   startPipe: (row) => ipcRenderer.invoke('startPipe', row),
   closePipe: (row) => ipcRenderer.invoke('closePipe', row),
+  loadEnvJsonContent: () => ipcRenderer.invoke('loadEnvJsonContent'),
 })

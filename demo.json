@@ -1,0 +1,91 @@
+[
+  {
+  "localPort": "27030",
+  "remoteAddress": "172.31.3.163:27017",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "mongodb",
+  "env": "prod",
+  "area": "global",
+  "remark": "手游日志"
+}, {
+  "localPort": "27031",
+  "remoteAddress": "172.17.0.1:27017",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "mongodb",
+  "env": "test",
+  "area": "global",
+  "remark": "测试"
+}, {
+  "localPort": "27032",
+  "remoteAddress": "172.22.0.28:27017",
+  "jumpAddress": "root@43.133.61.138",
+  "appType": "mongodb",
+  "env": "prod",
+  "area": "global",
+  "remark": "推送"
+}, {
+  "localPort": "27033",
+  "remoteAddress": "172.22.0.21:27017",
+  "jumpAddress": "root@43.133.61.138",
+  "appType": "mongodb",
+  "env": "prod",
+  "area": "global",
+  "remark": "推送日志"
+}, {
+  "localPort": "3410",
+  "remoteAddress": "sdk-db.cegrizwp1nwf.ap-southeast-1.rds.amazonaws.com:3306",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "mysql",
+  "env": "prod",
+  "area": "global",
+  "remark": "手游"
+}, {
+  "localPort": "3411",
+  "remoteAddress": "sdk-test.cegrizwp1nwf.ap-southeast-1.rds.amazonaws.com:3306",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "mysql",
+  "env": "test",
+  "area": "global",
+  "remark": "手游测试"
+}, {
+  "localPort": "6383",
+  "remoteAddress": "redis-2g-sdk-test.x8d4im.ng.0001.apse1.cache.amazonaws.com:6379",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "redis",
+  "env": "test",
+  "area": "global",
+  "remark": "手游测试"
+}, {
+  "localPort": "6384",
+  "remoteAddress": "redis-shouyou-04.x8d4im.0001.apse1.cache.amazonaws.com:6379",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "redis",
+  "env": "prod",
+  "area": "global",
+  "remark": "手游"
+}, {
+  "localPort": "6385",
+  "remoteAddress": "172.22.0.27:6379",
+  "jumpAddress": "root@43.133.61.138",
+  "appType": "redis",
+  "env": "prod",
+  "area": "global",
+  "remark": "推送"
+}, {
+  "localPort": "6386",
+  "remoteAddress": "redis-shouyou-log.x8d4im.ng.0001.apse1.cache.amazonaws.com:6379",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "redis",
+  "env": "prod",
+  "area": "global",
+  "remark": "手游日志"
+}, {
+  "localPort": "6387",
+  "remoteAddress": "172.31.31.211:6379",
+  "jumpAddress": "root@18.138.243.238",
+  "appType": "redis",
+  "env": "prod",
+  "area": "global",
+  "remark": "客户端debug日志"
+}
+]

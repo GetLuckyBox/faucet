@@ -9,6 +9,7 @@ export default interface ElectronApi {
   delPipe: (row: any) => boolean
   startPipe: (row: any) => boolean
   closePipe: (row: any) => boolean
+  loadEnvJsonContent: () => object
 }
 
 declare global {

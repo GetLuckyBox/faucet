@@ -51,15 +51,13 @@ app.on('window-all-closed', function () {
 ipcMain.on('message', (event, message) => {
   console.log(message);
 })
-const documentsDir = join(os.homedir(), 'faucet');
-const pipeFilePath = join(documentsDir, 'pipe.json');
+const faucetConfigDir = join(os.homedir(), 'faucet');
+const pipeFilePath = join(faucetConfigDir, 'pipe.json');
 ipcMain.handle('loadPipeJsonContent', () => {
-
-
 // 检查目录是否存在，如果不存在，则创建目录
-  if (!fs.existsSync(documentsDir)) {
+  if (!fs.existsSync(faucetConfigDir)) {
     try {
-      fs.mkdirSync(documentsDir, { recursive: true });
+      fs.mkdirSync(faucetConfigDir, { recursive: true });
       console.log('目录创建成功');
     } catch (error) {
       console.log(error);
@@ -69,7 +67,6 @@ ipcMain.handle('loadPipeJsonContent', () => {
   if (! fs.existsSync(pipeFilePath)) {
     try {
       fs.writeFileSync(pipeFilePath, '[]', 'utf8');
-      // console.log('文本文件创建成功！');
     } catch (err) {
       console.error('创建文件时出错：', err);
     }
@@ -98,43 +95,65 @@ ipcMain.handle('delPipe', (event, item) => {
   fs.writeFileSync(pipeFilePath, JSON.stringify(content), 'utf8');
   return true
 })
-let pid = 0
-ipcMain.handle('startPipe', (event, item) => {
-  const pipeConfig = JSON.parse(item);
-  // const sshConfigFilePath = join(__dirname, 'config')
-  // ssh -vNL 27030:172.31.3.163:27017 root@18.138.243.238
-  // ssh -o ProxyCommand="nc -x 127.0.0.1:3000 %h %p"
-  const cmd = 'ssh -o ProxyCommand="nc -x 127.0.0.1:10801 %h %p" -vNL '  + pipeConfig.localPort + ':' + pipeConfig.remoteAddress + ' ' + pipeConfig.jumpAddress;
-  // const pipeShellFilePath = join(__dirname, pipeConfig.localPort +'.sh')
-  // fs.writeFileSync(pipeShellFilePath, cmd, 'utf8');
-  const batFilePath = 'C:\\Users\\Administrator\\faucet\\demo.bat'
 
-   const child = exec(`ssh -vNL 27031:172.22.0.28:27017 root@43.133.61.138`, (error, stdout, stderr) => {
+ipcMain.handle('startPipe', (event, item) => {
+  const envList = JSON.parse(fs.readFileSync(envFilePath, 'utf8'));
+  const pipeConfig = JSON.parse(item);
+  let socket5 = '';
+  for (const key in envList) {
+    const item = envList[key];
+    if (item.name == pipeConfig.area) {
+      socket5 = item.socks5Address;
+    }
+  }
+  if (socket5 == '') {
+    return false
+  }
+  const localPort = pipeConfig.localPort;
+  const remoteAddress = pipeConfig.remoteAddress;
+  const jumpAddress = pipeConfig.jumpAddress;
+  const cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
+  console.log(cmd)
+  const child = exec(cmd, (error, stdout, stderr) => {
     if (error) {
-      console.error(`执行错误： ${error}`);
       return;
     }
-    console.log(`输出： ${stdout}`);
-    console.error(`错误输出： ${stderr}`);
   });
-  console.log(process.platform)
-  // 要执行的命令
-  // const command = 'start ' + batFilePath;
-
-// 开启进程
-//   const child = spawn(command);
-
-// 获取进程的pid
-  pid = child.pid as number;
-  console.log(`进程的pid为： ${pid}`);
-  // child.kill()
-  // process.kill(pid as number);
-
+  console.log( 'pid:' +child.pid);
+  const pipePidFilePath = join(faucetConfigDir, String(pipeConfig.localPort));
+  try {
+    fs.writeFileSync(pipePidFilePath, String(child.pid), 'utf8');
+  } catch (err) {
+    console.error('创建文件时出错：', err);
+  }
   return true;
 })
 
 ipcMain.handle('closePipe', (event, item) => {
-  console.log(`closePipe ${pid}`)
-  process.kill(pid as number);
+  const pipeConfig = JSON.parse(item);
+  const pipePidFilePath = join(faucetConfigDir, String(pipeConfig.localPort));
+  if (fs.existsSync(pipePidFilePath)) {
+    const pid = fs.readFileSync(pipePidFilePath, 'utf8')
+    console.log(pid)
+    if (parseInt(pid) > 0) {
+      // todo 需要判断进程的cmd是否满足删除条件
+      process.kill(parseInt(pid));
+      fs.writeFileSync(pipePidFilePath, String(0), 'utf8');
+    }
+  }
   return true;
 })
+
+const envFilePath = join(faucetConfigDir, 'env.json');
+ipcMain.handle('loadEnvJsonContent', () => {
+  if (! fs.existsSync(envFilePath)) {
+    try {
+      const init = '[{"socks5Address":"127.0.0.1:10801","name":"global"},{"socks5Address":"127.0.0.1:10800","name":"inland"}]';
+      fs.writeFileSync(envFilePath, init, 'utf8');
+    } catch (err) {
+      console.error('创建文件时出错：', err);
+    }
+  }
+  return JSON.parse(fs.readFileSync(envFilePath, 'utf8'));
+})
+

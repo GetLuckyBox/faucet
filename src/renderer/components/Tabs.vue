@@ -1,6 +1,29 @@
 <script setup lang="ts">
 import { ref, reactive, toRefs } from 'vue'
 import { ElMessage } from 'element-plus'
+const showList = ref([])
+const areaList = ref([])
+const areaData = ref([])
+const editableTabsValue = ref('')
+const areaFormat = {
+  socks5Address: '', // 必填项
+  name: '',// 必填项
+}
+const areaForm = reactive(areaFormat)
+const loadEnvJsonContent = async () => {
+  const content = await window.electronAPI.loadEnvJsonContent();
+  (content as object[]).forEach((item: any) => {
+    const temp = Object.assign(ref(areaForm), item);
+    areaData.value.push(temp as never);
+    areaList.value.push(({
+      value: item.name,
+      label: item.name,
+      tableData: []
+    }) as never);
+    editableTabsValue.value = item.name
+  })
+}
+loadEnvJsonContent()
 
 const tableData = ref([])
 const rowFormat = {
@@ -15,9 +38,14 @@ const rowFormat = {
 const form = reactive(rowFormat)
 const loadPipeJsonContent = async () => {
   const content = await window.electronAPI.loadPipeJsonContent();
-  (content as object[]).forEach((item) => {
+  (content as object[]).forEach((item: any) => {
     const temp = Object.assign({isClose: 0}, item);
     tableData.value.push(temp as never);
+    (areaList.value as object[]).forEach((areaItem:any) => {
+      if (areaItem.label == temp.area) {
+        areaItem.tableData.push(temp)
+      }
+    })
   })
 }
 loadPipeJsonContent()
@@ -27,6 +55,7 @@ defineProps({
 })
 let editItemIndex = 0
 let dialogFormVisible = ref(false)
+let dialogEnvVisible = ref(false)
 let dialogFormTitle = ref('新增隧道')
 
 const handleEdit = (props: any) => {
@@ -83,15 +112,14 @@ const handleCancelDig = () => {
 }
 
 const submit = () => {
-  for (const key in tableData.value) {
-    if ((tableData.value[key] as any).localPort == form.localPort) {
-      errorTips('本地端口不可重复');
-      return
-    }
-  }
   const formData = Object.assign(reactive({}), reactive(toRefs(form)));
   if (dialogFormTitle.value == '新增隧道') {
-
+    for (const key in tableData.value) {
+      if ((tableData.value[key] as any).localPort == form.localPort) {
+        errorTips('本地端口不可重复');
+        return
+      }
+    }
     const formDataJsonStr = JSON.stringify(formData)
     const addPipe = async () => {
       return window.electronAPI.addPipe(formDataJsonStr);
@@ -99,6 +127,12 @@ const submit = () => {
     addPipe();
     (tableData.value as object[]).push(formData);
   } else {
+    for (const key in tableData.value) {
+      if ((tableData.value[key] as any).localPort == form.localPort && editItemIndex != parseInt(key)) {
+        errorTips('本地端口不可重复');
+        return
+      }
+    }
     const formDataJsonStr = JSON.stringify({
       index: editItemIndex,
       row: form
@@ -112,10 +146,16 @@ const submit = () => {
 
 const formLabelWidth = '80px'
 
+
+
+const handleTabClick = (tab: any, event: any) => {
+
+}
 </script>
 
 <template>
   <el-button type="primary" @click="dialogFormVisible = true">新增隧道</el-button>
+  <el-button type="primary" @click="dialogEnvVisible = true">socket5</el-button>
   <el-dialog v-model="dialogFormVisible" :title=dialogFormTitle>
     <el-form :model="form">
       <el-form-item label="本地端口" :label-width="formLabelWidth">
@@ -137,19 +177,42 @@ const formLabelWidth = '80px'
         <el-input v-model="form.env" autocomplete="off" />
       </el-form-item>
       <el-form-item label="区域名称" :label-width="formLabelWidth">
-        <el-input v-model="form.area" autocomplete="off" />
+        <el-select v-model="form.area" placeholder="Select" >
+          <el-option
+              v-for="item in areaList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+          />
+        </el-select>
       </el-form-item>
     </el-form>
     <template #footer>
-        <el-button @click="handleCancelDig()">Cancel</el-button>
+        <el-button @click="handleCancelDig()">取消</el-button>
         <el-button type="primary" @click="submit()">
-          Confirm
+          确定
         </el-button>
     </template>
   </el-dialog>
-  <el-tabs model-value="first">
-    <el-tab-pane  label="隧道列表" name="first">
-      <el-table :data="tableData" style="width: 100%">
+  <el-dialog v-model="dialogEnvVisible" title='socket5'>
+    <el-table :data="areaData" style="width: 100%" max-height="250">
+      <el-table-column prop="name" label="名称" />
+      <el-table-column prop="socks5Address" label="socks5" />
+    </el-table>
+  </el-dialog>
+
+  <el-tabs
+      v-model="editableTabsValue"
+      type="card"
+      @tab-click="handleTabClick"
+  >
+    <el-tab-pane
+        v-for="item in areaList"
+        :key="item.value"
+        :label="item.value"
+        :name="item.value"
+    >
+      <el-table :data="item.tableData" style="width: 100%">
         <el-table-column type="expand">
           <template #default="props">
             <div>
@@ -164,11 +227,11 @@ const formLabelWidth = '80px'
               </el-row>
             </div>
             <el-button type="primary" size="small" @click="handleEdit(props)">编辑</el-button>
-              <el-popconfirm title="确认删除选中配置?" @confirm="handleDel(props)">
-                <template #reference>
-                  <el-button type="danger" size="small" style="margin-left: 20px">删除</el-button>
-                </template>
-              </el-popconfirm>
+            <el-popconfirm title="确认删除选中配置?" @confirm="handleDel(props)">
+              <template #reference>
+                <el-button type="danger" size="small" style="margin-left: 20px">删除</el-button>
+              </template>
+            </el-popconfirm>
           </template>
         </el-table-column>
         <el-table-column prop="localPort" label="本地端口"  />
@@ -190,11 +253,16 @@ const formLabelWidth = '80px'
           </template>
         </el-table-column>
       </el-table>
-      <div class="example-pagination-block" style="float: right;margin-top: 15px">
-        <el-pagination layout="prev, pager, next" :total="50" />
-      </div>
     </el-tab-pane>
   </el-tabs>
+
+<!--  <el-tabs model-value="first">-->
+<!--    <el-tab-pane  label="隧道列表" name="first">-->
+<!--      <div class="example-pagination-block" style="float: right;margin-top: 15px">-->
+<!--        <el-pagination layout="prev, pager, next" :total="50" />-->
+<!--      </div>-->
+<!--    </el-tab-pane>-->
+<!--  </el-tabs>-->
 
 </template>
 
