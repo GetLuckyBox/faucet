@@ -112,8 +112,12 @@ ipcMain.handle('startPipe', (event, item) => {
   const localPort = pipeConfig.localPort;
   const remoteAddress = pipeConfig.remoteAddress;
   const jumpAddress = pipeConfig.jumpAddress;
-  const cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
-  console.log(cmd)
+  let cmd = '';
+  if (os.platform() !== 'win32') {
+    cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
+  } else {
+    cmd = `ssh -o ProxyCommand="ncat --proxy-type socks5 --proxy ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
+  }
   const child = exec(cmd, (error, stdout, stderr) => {
     if (error) {
       return;
