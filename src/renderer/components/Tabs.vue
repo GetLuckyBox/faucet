@@ -25,8 +25,8 @@ const loadEnvJsonContent = async () => {
 }
 loadEnvJsonContent()
 
-const tableData = ref([])
 const rowFormat = {
+
   localPort: '', // 必填项
   remoteAddress: '',// 必填项
   jumpAddress: '',// 必填项
@@ -40,7 +40,6 @@ const loadPipeJsonContent = async () => {
   const content = await window.electronAPI.loadPipeJsonContent();
   (content as object[]).forEach((item: any) => {
     const temp = Object.assign({isClose: 0}, item);
-    tableData.value.push(temp as never);
     (areaList.value as object[]).forEach((areaItem:any) => {
       if (areaItem.label == temp.area) {
         areaItem.tableData.push(temp)
@@ -92,7 +91,11 @@ const handleDel = (props: any) => {
   }
   const index = props.$index;
   window.electronAPI.delPipe(index);
-  (tableData.value as object[]).splice(index, 1);
+  (areaList.value as object[]).forEach((areaItem:any) => {
+    if (areaItem.label == editableTabsValue.value) {
+      (areaItem.tableData as object[]).splice(index, 1);
+    }
+  });
 }
 
 const handlePipe = (row: any) => {
@@ -114,10 +117,13 @@ const handleCancelDig = () => {
 const submit = () => {
   const formData = Object.assign(reactive({}), reactive(toRefs(form)));
   if (dialogFormTitle.value == '新增隧道') {
-    for (const key in tableData.value) {
-      if ((tableData.value[key] as any).localPort == form.localPort) {
-        errorTips('本地端口不可重复');
-        return
+    for (const areaKey in areaList.value) {
+      let areaItem = (areaList.value[areaKey] as any);
+      for (const key in (areaItem.tableData as object[])) {
+        if (areaItem.tableData[key].localPort == form.localPort) {
+          errorTips('本地端口不可重复');
+          return
+        }
       }
     }
     const formDataJsonStr = JSON.stringify(formData)
@@ -125,12 +131,19 @@ const submit = () => {
       return window.electronAPI.addPipe(formDataJsonStr);
     }
     addPipe();
-    (tableData.value as object[]).push(formData);
+    (areaList.value as object[]).forEach((areaItem:any) => {
+      if (areaItem.label == editableTabsValue.value) {
+        (areaItem.tableData as object[]).push(formData);
+      }
+    });
   } else {
-    for (const key in tableData.value) {
-      if ((tableData.value[key] as any).localPort == form.localPort && editItemIndex != parseInt(key)) {
-        errorTips('本地端口不可重复');
-        return
+    for (const areaKey in areaList.value) {
+      let areaItem = (areaList.value[areaKey] as any);
+      for (const key in (areaItem.tableData as object[])) {
+        if (areaItem.tableData[key].localPort == form.localPort && editItemIndex != parseInt(key)) {
+          errorTips('本地端口不可重复');
+          return
+        }
       }
     }
     const formDataJsonStr = JSON.stringify({
@@ -138,19 +151,17 @@ const submit = () => {
       row: form
     })
     window.electronAPI.editPipe(formDataJsonStr);
-    (tableData.value as object[])[editItemIndex] = formData;
+    (areaList.value as object[]).forEach((areaItem:any) => {
+      if (areaItem.label == editableTabsValue.value) {
+        (areaItem.tableData as object[])[editItemIndex] = formData;
+      }
+    });
   }
   dialogFormTitle.value = '新增隧道'
   dialogFormVisible.value = false
 }
 
 const formLabelWidth = '80px'
-
-
-
-const handleTabClick = (tab: any, event: any) => {
-
-}
 </script>
 
 <template>
@@ -200,12 +211,7 @@ const handleTabClick = (tab: any, event: any) => {
       <el-table-column prop="socks5Address" label="socks5" />
     </el-table>
   </el-dialog>
-
-  <el-tabs
-      v-model="editableTabsValue"
-      type="card"
-      @tab-click="handleTabClick"
-  >
+  <el-tabs v-model="editableTabsValue" type="card" @tab-click="handleTabClick">
     <el-tab-pane
         v-for="item in areaList"
         :key="item.value"
@@ -255,15 +261,6 @@ const handleTabClick = (tab: any, event: any) => {
       </el-table>
     </el-tab-pane>
   </el-tabs>
-
-<!--  <el-tabs model-value="first">-->
-<!--    <el-tab-pane  label="隧道列表" name="first">-->
-<!--      <div class="example-pagination-block" style="float: right;margin-top: 15px">-->
-<!--        <el-pagination layout="prev, pager, next" :total="50" />-->
-<!--      </div>-->
-<!--    </el-tab-pane>-->
-<!--  </el-tabs>-->
-
 </template>
 
 <style scoped>
