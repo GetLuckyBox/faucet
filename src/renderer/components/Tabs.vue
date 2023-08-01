@@ -90,12 +90,11 @@ const handleDel = (props: any) => {
     return;
   }
   const index = props.$index;
-  window.electronAPI.delPipe(index);
-  (areaList.value as object[]).forEach((areaItem:any) => {
-    if (areaItem.label == editableTabsValue.value) {
-      (areaItem.tableData as object[]).splice(index, 1);
-    }
+  window.electronAPI.delPipe({
+    "index": index,
+    "area": props.row.area
   });
+  loadPipeJsonContent()
 }
 
 const handlePipe = (row: any) => {
@@ -131,11 +130,6 @@ const submit = () => {
       return window.electronAPI.addPipe(formDataJsonStr);
     }
     addPipe();
-    (areaList.value as object[]).forEach((areaItem:any) => {
-      if (areaItem.label == editableTabsValue.value) {
-        (areaItem.tableData as object[]).push(formData);
-      }
-    });
   } else {
     for (const areaKey in areaList.value) {
       let areaItem = (areaList.value[areaKey] as any);
@@ -151,12 +145,12 @@ const submit = () => {
       row: form
     })
     window.electronAPI.editPipe(formDataJsonStr);
-    (areaList.value as object[]).forEach((areaItem:any) => {
-      if (areaItem.label == editableTabsValue.value) {
-        (areaItem.tableData as object[])[editItemIndex] = formData;
-      }
-    });
+    // if (form.area != [editItemIndex]) {
+    //   addPipe();
+    // }
+
   }
+  loadPipeJsonContent()
   dialogFormTitle.value = '新增隧道'
   dialogFormVisible.value = false
 }

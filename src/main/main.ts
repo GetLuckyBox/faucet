@@ -93,12 +93,12 @@ ipcMain.handle('loadPipeJsonContent', () => {
       fs.writeFileSync(pipeFileGlobalPath, JSON.stringify(inland), 'utf8');
     }
   }
-  const globalConfigList = JSON.parse(fs.readFileSync(pipeFileGlobalPath, 'utf8'));
+  let globalConfigList = JSON.parse(fs.readFileSync(pipeFileGlobalPath, 'utf8'));
   const inlandConfigList = JSON.parse(fs.readFileSync(pipeFileInlandPath, 'utf8'));
-  return {
-    "global": globalConfigList,
-    "inland": inlandConfigList,
-  };
+  for (const key in inlandConfigList) {
+    globalConfigList.push(inlandConfigList[key])
+  }
+  return globalConfigList;
 })
 
 ipcMain.handle('addPipe', (event, item) => {
@@ -115,14 +115,34 @@ ipcMain.handle('addPipe', (event, item) => {
 })
 
 ipcMain.handle('editPipe', (event, item) => {
-  let content = JSON.parse(fs.readFileSync(pipeFilePath, 'utf8'));
+  let globalContent = JSON.parse(fs.readFileSync(pipeFileGlobalPath, 'utf8'));
+  let inlandContent = JSON.parse(fs.readFileSync(pipeFileInlandPath, 'utf8'));
+
   const editDate = JSON.parse(item);
-  (content as object[])[editDate.index] = editDate.row;
-  fs.writeFileSync(pipeFilePath, JSON.stringify(content), 'utf8');
+  (globalContent as object[]).forEach((globalItem: any, globalKey) => {
+    if (editDate.port == globalItem.port && editDate.area != globalItem.area) {
+      (globalContent as object[]).splice(globalKey, 1);
+    }
+    if (editDate.port == globalItem.port && editDate.area == globalItem.area) {
+      (globalContent as object[])[editDate.index] = editDate.row;
+      fs.writeFileSync(pipeFilePath, JSON.stringify(globalContent), 'utf8');
+    }
+  });
+
+  (inlandContent as object[]).forEach((inlandItem: any, inlandKey) => {
+    if (editDate.port == inlandItem.port && editDate.area != inlandItem.area) {
+      (inlandContent as object[]).splice(inlandKey, 1);
+    }
+    if (editDate.port == inlandItem.port && editDate.area == inlandItem.area) {
+      (globalContent as object[])[editDate.index] = editDate.row;
+      fs.writeFileSync(pipeFilePath, JSON.stringify(globalContent), 'utf8');
+    }
+  });
   return true;
 })
 
 ipcMain.handle('delPipe', (event, item:any) => {
+  item = JSON.parse(item);
   let configFile = '';
   if (item.area == 'inland') {
     configFile = pipeFileInlandPath;
