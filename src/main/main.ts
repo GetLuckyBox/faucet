@@ -53,6 +53,8 @@ ipcMain.on('message', (event, message) => {
 })
 const faucetConfigDir = join(os.homedir(), 'faucet');
 const pipeFilePath = join(faucetConfigDir, 'pipe.json');
+const pipeFileGlobalPath = join(faucetConfigDir, 'global.json');
+const pipeFileInlandPath = join(faucetConfigDir, 'inland.json');
 ipcMain.handle('loadPipeJsonContent', () => {
 // 检查目录是否存在，如果不存在，则创建目录
   if (!fs.existsSync(faucetConfigDir)) {
@@ -70,14 +72,45 @@ ipcMain.handle('loadPipeJsonContent', () => {
     } catch (err) {
       console.error('创建文件时出错：', err);
     }
+  } else {
+    const content = JSON.parse(fs.readFileSync(pipeFilePath, 'utf8'));
+    if (! fs.existsSync(pipeFileGlobalPath)) {
+      let global: object[] = [];
+      (content as object[]).forEach((item: any) => {
+        if ('global' == item.area) {
+          global.push(item)
+        }
+      })
+      fs.writeFileSync(pipeFileGlobalPath, JSON.stringify(global), 'utf8');
+    }
+    if (! fs.existsSync(pipeFileInlandPath)) {
+      let inland: object[] = [];
+      (content as object[]).forEach((item: any) => {
+        if ('inland' == item.area) {
+          inland.push(item)
+        }
+      })
+      fs.writeFileSync(pipeFileGlobalPath, JSON.stringify(inland), 'utf8');
+    }
   }
-  return JSON.parse(fs.readFileSync(pipeFilePath, 'utf8'));
+  const globalConfigList = JSON.parse(fs.readFileSync(pipeFileGlobalPath, 'utf8'));
+  const inlandConfigList = JSON.parse(fs.readFileSync(pipeFileInlandPath, 'utf8'));
+  return {
+    "global": globalConfigList,
+    "inland": inlandConfigList,
+  };
 })
 
 ipcMain.handle('addPipe', (event, item) => {
-  let content = JSON.parse(fs.readFileSync(pipeFilePath, 'utf8'));
+  let configFile = '';
+  if (item.area == 'inland') {
+    configFile = pipeFileInlandPath;
+  } else {
+    configFile = pipeFileGlobalPath;
+  }
+  let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   (content as object[]).push(JSON.parse(item));
-  fs.writeFileSync(pipeFilePath, JSON.stringify(content), 'utf8');
+  fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
   return true;
 })
 
@@ -89,10 +122,16 @@ ipcMain.handle('editPipe', (event, item) => {
   return true;
 })
 
-ipcMain.handle('delPipe', (event, item) => {
-  let content = JSON.parse(fs.readFileSync(pipeFilePath, 'utf8'));
-  (content as object[]).splice(item, 1);
-  fs.writeFileSync(pipeFilePath, JSON.stringify(content), 'utf8');
+ipcMain.handle('delPipe', (event, item:any) => {
+  let configFile = '';
+  if (item.area == 'inland') {
+    configFile = pipeFileInlandPath;
+  } else {
+    configFile = pipeFileGlobalPath;
+  }
+  let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  (content as object[]).splice(item.index, 1);
+  fs.writeFileSync(pipeFilePath, JSON.stringify(configFile), 'utf8');
   return true
 })
 
