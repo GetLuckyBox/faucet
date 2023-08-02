@@ -37,6 +37,9 @@ const rowFormat = {
 }
 const form = reactive(rowFormat)
 const loadPipeJsonContent = async () => {
+  for (const areaKey in areaList.value) {
+    (areaList.value[areaKey] as any).tableData = []
+  }
   const content = await window.electronAPI.loadPipeJsonContent();
   (content as object[]).forEach((item: any) => {
     const temp = Object.assign({isClose: 0}, item);
@@ -89,11 +92,12 @@ const handleDel = (props: any) => {
     errorTips('隧道开启中不可删除');
     return;
   }
+
   const index = props.$index;
-  window.electronAPI.delPipe({
+  window.electronAPI.delPipe(JSON.stringify({
     "index": index,
     "area": props.row.area
-  });
+  }));
   loadPipeJsonContent()
 }
 
@@ -145,10 +149,6 @@ const submit = () => {
       row: form
     })
     window.electronAPI.editPipe(formDataJsonStr);
-    // if (form.area != [editItemIndex]) {
-    //   addPipe();
-    // }
-
   }
   loadPipeJsonContent()
   dialogFormTitle.value = '新增隧道'

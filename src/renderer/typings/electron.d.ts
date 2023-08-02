@@ -4,11 +4,11 @@
 export default interface ElectronApi {
   sendMessage: (message: string) => void
   loadPipeJsonContent: () => object
-  addPipe: (row: any) => boolean
-  editPipe: (row: any) => boolean
-  delPipe: (row: any) => boolean
-  startPipe: (row: any) => boolean
-  closePipe: (row: any) => boolean
+  addPipe: (row: string) => boolean
+  editPipe: (row: string) => boolean
+  delPipe: (row: string) => boolean
+  startPipe: (row: string) => boolean
+  closePipe: (row: string) => boolean
   loadEnvJsonContent: () => object
 }
 

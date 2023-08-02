@@ -90,10 +90,12 @@ ipcMain.handle('loadPipeJsonContent', () => {
           inland.push(item)
         }
       })
-      fs.writeFileSync(pipeFileGlobalPath, JSON.stringify(inland), 'utf8');
+      fs.writeFileSync(pipeFileInlandPath, JSON.stringify(inland), 'utf8');
     }
   }
   let globalConfigList = JSON.parse(fs.readFileSync(pipeFileGlobalPath, 'utf8'));
+  console.log('load config')
+
   const inlandConfigList = JSON.parse(fs.readFileSync(pipeFileInlandPath, 'utf8'));
   for (const key in inlandConfigList) {
     globalConfigList.push(inlandConfigList[key])
@@ -120,30 +122,35 @@ ipcMain.handle('editPipe', (event, item) => {
 
   const editDate = JSON.parse(item);
   (globalContent as object[]).forEach((globalItem: any, globalKey) => {
-    if (editDate.port == globalItem.port && editDate.area != globalItem.area) {
+    if (editDate.row.localPort === globalItem.localPort && editDate.row.area !== globalItem.area) {
       (globalContent as object[]).splice(globalKey, 1);
+      (inlandContent as object[]).push(editDate.row)
     }
-    if (editDate.port == globalItem.port && editDate.area == globalItem.area) {
+    if (editDate.row.localPort == globalItem.localPort && editDate.area == globalItem.area) {
       (globalContent as object[])[editDate.index] = editDate.row;
-      fs.writeFileSync(pipeFilePath, JSON.stringify(globalContent), 'utf8');
     }
   });
 
   (inlandContent as object[]).forEach((inlandItem: any, inlandKey) => {
-    if (editDate.port == inlandItem.port && editDate.area != inlandItem.area) {
+    if (editDate.row.localPort == inlandItem.localPort && editDate.area != inlandItem.area) {
       (inlandContent as object[]).splice(inlandKey, 1);
+      (globalContent as object[]).push(editDate.row)
     }
-    if (editDate.port == inlandItem.port && editDate.area == inlandItem.area) {
-      (globalContent as object[])[editDate.index] = editDate.row;
-      fs.writeFileSync(pipeFilePath, JSON.stringify(globalContent), 'utf8');
+    if (editDate.row.localPort == inlandItem.localPort && editDate.area == inlandItem.area) {
+      (inlandContent as object[])[editDate.index] = editDate.row;
     }
+
   });
+  fs.writeFileSync(pipeFileGlobalPath, JSON.stringify(globalContent), 'utf8');
+  fs.writeFileSync(pipeFileInlandPath, JSON.stringify(inlandContent), 'utf8');
+
   return true;
 })
 
 ipcMain.handle('delPipe', (event, item:any) => {
   item = JSON.parse(item);
   let configFile = '';
+  console.log(item)
   if (item.area == 'inland') {
     configFile = pipeFileInlandPath;
   } else {
@@ -151,7 +158,8 @@ ipcMain.handle('delPipe', (event, item:any) => {
   }
   let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   (content as object[]).splice(item.index, 1);
-  fs.writeFileSync(pipeFilePath, JSON.stringify(configFile), 'utf8');
+  console.log('del config')
+  fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
   return true
 })
 
