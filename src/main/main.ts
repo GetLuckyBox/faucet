@@ -1,8 +1,9 @@
 import {app, BrowserWindow, ipcMain, session} from 'electron';
 import {join} from 'path';
 import * as fs from 'fs';
-import {exec} from 'child_process';
+import { execSync,exec } from 'child_process';
 import os from 'os';
+import log from 'electron-log';
 function createWindow () {
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -51,10 +52,12 @@ app.on('window-all-closed', function () {
 ipcMain.on('message', (event, message) => {
   console.log(message);
 })
+
 const faucetConfigDir = join(os.homedir(), 'faucet');
 const pipeFilePath = join(faucetConfigDir, 'pipe.json');
 const pipeFileGlobalPath = join(faucetConfigDir, 'global.json');
 const pipeFileInlandPath = join(faucetConfigDir, 'inland.json');
+log.transports.file.resolvePath = () => join(faucetConfigDir, 'pipe.log')
 ipcMain.handle('loadPipeJsonContent', () => {
 // 检查目录是否存在，如果不存在，则创建目录
   if (!fs.existsSync(faucetConfigDir)) {
@@ -126,17 +129,17 @@ ipcMain.handle('editPipe', (event, item) => {
       (globalContent as object[]).splice(globalKey, 1);
       (inlandContent as object[]).push(editDate.row)
     }
-    if (editDate.row.localPort == globalItem.localPort && editDate.area == globalItem.area) {
+    if (editDate.row.localPort == globalItem.localPort && editDate.row.area == globalItem.area) {
       (globalContent as object[])[editDate.index] = editDate.row;
     }
   });
 
   (inlandContent as object[]).forEach((inlandItem: any, inlandKey) => {
-    if (editDate.row.localPort == inlandItem.localPort && editDate.area != inlandItem.area) {
+    if (editDate.row.localPort == inlandItem.localPort && editDate.row.area != inlandItem.area) {
       (inlandContent as object[]).splice(inlandKey, 1);
       (globalContent as object[]).push(editDate.row)
     }
-    if (editDate.row.localPort == inlandItem.localPort && editDate.area == inlandItem.area) {
+    if (editDate.row.localPort == inlandItem.localPort && editDate.row.area == inlandItem.area) {
       (inlandContent as object[])[editDate.index] = editDate.row;
     }
 
@@ -187,15 +190,24 @@ ipcMain.handle('startPipe', (event, item) => {
   }
   const child = exec(cmd, (error, stdout, stderr) => {
     if (error) {
+      log.error(error)
       return;
     }
   });
-  console.log( 'pid:' +child.pid);
+  if (os.platform() === 'win32') {
+    try {
+      const res = execSync(`tasklist | findstr ${child.pid} | findstr cmd` )
+      // log.info(res.toString())
+    } catch (e) {
+      log.error(e)
+      return false
+    }
+  }
   const pipePidFilePath = join(faucetConfigDir, String(pipeConfig.localPort));
   try {
     fs.writeFileSync(pipePidFilePath, String(child.pid), 'utf8');
   } catch (err) {
-    console.error('创建文件时出错：', err);
+    log.error('创建文件时出错：', err);
   }
   return true;
 })
@@ -205,10 +217,11 @@ ipcMain.handle('closePipe', (event, item) => {
   const pipePidFilePath = join(faucetConfigDir, String(pipeConfig.localPort));
   if (fs.existsSync(pipePidFilePath)) {
     const pid = fs.readFileSync(pipePidFilePath, 'utf8')
-    console.log(pid)
+    log.info(pid)
     if (parseInt(pid) > 0) {
       // todo 需要判断进程的cmd是否满足删除条件
-      process.kill(parseInt(pid));
+      log.info('kill ',pid)
+      process.kill(parseInt(pid))
       fs.writeFileSync(pipePidFilePath, String(0), 'utf8');
     }
   }

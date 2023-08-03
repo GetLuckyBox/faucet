@@ -102,21 +102,25 @@ const handleDel = (props: any) => {
 }
 
 const handlePipe = (row: any) => {
-  console.log(row)
   const pipeConfigJsonStr = JSON.stringify(row)
   if (row.isClose == 1) {
-    window.electronAPI.startPipe(pipeConfigJsonStr);
+    const startPipe = async () => {
+     const res = await window.electronAPI.startPipe(pipeConfigJsonStr);
+     if (!res) {
+       row.isClose = 0
+       ElMessage.error('开启失败')
+     }
+    }
+    console.log(startPipe())
   } else {
     window.electronAPI.closePipe(pipeConfigJsonStr);
   }
 }
-
 const handleCancelDig = () => {
   editItemIndex = 0
   dialogFormTitle.value = '新增隧道'
   dialogFormVisible.value = false
 }
-
 const submit = () => {
   const formData = Object.assign(reactive({}), reactive(toRefs(form)));
   if (dialogFormTitle.value == '新增隧道') {
@@ -205,7 +209,7 @@ const formLabelWidth = '80px'
       <el-table-column prop="socks5Address" label="socks5" />
     </el-table>
   </el-dialog>
-  <el-tabs v-model="editableTabsValue" type="card" @tab-click="handleTabClick">
+  <el-tabs v-model="editableTabsValue" type="card">
     <el-tab-pane
         v-for="item in areaList"
         :key="item.value"
