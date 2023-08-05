@@ -9,6 +9,7 @@ export default interface ElectronApi {
   delPipe: (row: string) => boolean
   startPipe: (row: string) => boolean
   closePipe: (row: string) => boolean
+  isPortReachable: (row: string) => boolean
   loadEnvJsonContent: () => object
 }
 

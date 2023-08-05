@@ -3,7 +3,9 @@ import {join} from 'path';
 import * as fs from 'fs';
 import { execSync,exec } from 'child_process';
 import os from 'os';
-import log from 'electron-log';
+import log, {info} from 'electron-log';
+import net from 'net';
+import {fa} from "element-plus/es/locale";
 function createWindow () {
   const mainWindow = new BrowserWindow({
     width: 800,
@@ -123,27 +125,25 @@ ipcMain.handle('editPipe', (event, item) => {
   let globalContent = JSON.parse(fs.readFileSync(pipeFileGlobalPath, 'utf8'));
   let inlandContent = JSON.parse(fs.readFileSync(pipeFileInlandPath, 'utf8'));
 
-  const editDate = JSON.parse(item);
-  (globalContent as object[]).forEach((globalItem: any, globalKey) => {
-    if (editDate.row.localPort === globalItem.localPort && editDate.row.area !== globalItem.area) {
-      (globalContent as object[]).splice(globalKey, 1);
-      (inlandContent as object[]).push(editDate.row)
-    }
-    if (editDate.row.localPort == globalItem.localPort && editDate.row.area == globalItem.area) {
-      (globalContent as object[])[editDate.index] = editDate.row;
-    }
-  });
+  const editDate: any = JSON.parse(item);
+  let content = [];
+  let otherContent = [];
+  if (editDate.editableTabsValue === 'inland') {
+    content = inlandContent;
+    otherContent = globalContent;
+  }
 
-  (inlandContent as object[]).forEach((inlandItem: any, inlandKey) => {
-    if (editDate.row.localPort == inlandItem.localPort && editDate.row.area != inlandItem.area) {
-      (inlandContent as object[]).splice(inlandKey, 1);
-      (globalContent as object[]).push(editDate.row)
-    }
-    if (editDate.row.localPort == inlandItem.localPort && editDate.row.area == inlandItem.area) {
-      (inlandContent as object[])[editDate.index] = editDate.row;
-    }
+  if (editDate.editableTabsValue === 'global') {
+    content = globalContent;
+    otherContent = inlandContent;
+  }
+  if (editDate.editableTabsValue === editDate.row.area) {
+    (content as object[])[editDate.index] = editDate.row;
+  } else {
+    (content).splice(editDate.index, 1);
+    (otherContent).push((editDate.row as never))
+  }
 
-  });
   fs.writeFileSync(pipeFileGlobalPath, JSON.stringify(globalContent), 'utf8');
   fs.writeFileSync(pipeFileInlandPath, JSON.stringify(inlandContent), 'utf8');
 
@@ -166,6 +166,70 @@ ipcMain.handle('delPipe', (event, item:any) => {
   return true
 })
 
+ipcMain.handle('isPortReachable', (event, item:any) => {
+  const localPort = parseInt(item);
+  return isPortReachable(localPort).then((reachable) => {
+    if (reachable) {
+      console.log(`Port ${localPort}  is reachable.`);
+      return true
+    } else {
+      console.log(`Port ${localPort}  is not reachable.`);
+      return false
+    }
+  }).catch((err) => {
+    console.log(`Error occurred: ${err.message}`);
+    return false
+  });
+})
+
+function isPortReachable(port) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(2000);
+    socket.on('error', (error) => {
+      log.info('isPortReachable')
+      log.error(error)
+      socket.destroy();
+      resolve(false);
+    });
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+
+    socket.connect(port, '127.0.0.1', () => {
+      socket.end();
+      resolve(true);
+    });
+  });
+}
+function isPortAvailable( port) {
+  return new Promise((resolve) => {
+
+    const server = net.createServer();
+
+    server.listen(port, () => {
+      server.close();
+      resolve(true);
+    });
+
+    server.on('error', (err: Error) => {
+      log.error('port error')
+      log.error(err.message)
+      resolve(false);
+    });
+  });
+}
+function execSshCommand(cmd){
+  return new Promise((resolve) => {
+     const childProcess = exec(cmd, (error, stdout, stderr) => {
+      if (error) {
+        resolve(0);
+      }
+     });
+     resolve(childProcess.pid);
+  });
+}
 ipcMain.handle('startPipe', (event, item) => {
   const envList = JSON.parse(fs.readFileSync(envFilePath, 'utf8'));
   const pipeConfig = JSON.parse(item);
@@ -182,34 +246,32 @@ ipcMain.handle('startPipe', (event, item) => {
   const localPort = pipeConfig.localPort;
   const remoteAddress = pipeConfig.remoteAddress;
   const jumpAddress = pipeConfig.jumpAddress;
-  let cmd = '';
-  if (os.platform() !== 'win32') {
-    cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
-  } else {
-    cmd = `ssh -o ProxyCommand="ncat --proxy-type socks5 --proxy ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
-  }
-  const child = exec(cmd, (error, stdout, stderr) => {
-    if (error) {
-      log.error(error)
-      return;
-    }
-  });
-  if (os.platform() === 'win32') {
-    try {
-      const res = execSync(`tasklist | findstr ${child.pid} | findstr cmd` )
-      // log.info(res.toString())
-    } catch (e) {
-      log.error(e)
+  const pipePidFilePath = join(faucetConfigDir, String(pipeConfig.localPort));
+  return isPortAvailable(localPort).then((isAvailable) => {
+    if (!isAvailable) {
       return false
     }
-  }
-  const pipePidFilePath = join(faucetConfigDir, String(pipeConfig.localPort));
-  try {
-    fs.writeFileSync(pipePidFilePath, String(child.pid), 'utf8');
-  } catch (err) {
-    log.error('创建文件时出错：', err);
-  }
-  return true;
+    let cmd = 'ls';
+    if (os.platform() !== 'win32') {
+      cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
+    } else {
+      cmd = `ssh -o ProxyCommand="ncat --proxy-type socks5 --proxy ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
+    }
+    return execSshCommand(cmd).then((pid) => {
+      if (pid === 0) {
+        return false
+      }
+      try {
+        fs.writeFileSync(pipePidFilePath, String(pid), 'utf8');
+      } catch (err) {
+        log.error('创建文件时出错：', err);
+      }
+      return true
+    })
+  }).catch((err) => {
+    log.error(err)
+    return false
+  });
 })
 
 ipcMain.handle('closePipe', (event, item) => {
@@ -219,9 +281,14 @@ ipcMain.handle('closePipe', (event, item) => {
     const pid = fs.readFileSync(pipePidFilePath, 'utf8')
     log.info(pid)
     if (parseInt(pid) > 0) {
+      log.info(`ps -ef | grep ${pid}  | grep ssh|awk '{print $2}'`)
+      const res = execSync(`ps -ef | grep ${pid}  | grep ssh|awk '{print $2}'|head -n 1`)
+      log.info('closePipe', res.toString())
       // todo 需要判断进程的cmd是否满足删除条件
       log.info('kill ',pid)
-      process.kill(parseInt(pid))
+      if (res.toString()) {
+        process.kill(parseInt(pid))
+      }
       fs.writeFileSync(pipePidFilePath, String(0), 'utf8');
     }
   }

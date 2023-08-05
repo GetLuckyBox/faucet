@@ -106,9 +106,22 @@ const handlePipe = (row: any) => {
   if (row.isClose == 1) {
     const startPipe = async () => {
      const res = await window.electronAPI.startPipe(pipeConfigJsonStr);
+     console.log('startPipe res', res)
      if (!res) {
        row.isClose = 0
        ElMessage.error('开启失败')
+     } else {
+       setTimeout(() => {
+         const isPortReachable = async () => {
+           const res = await window.electronAPI.isPortReachable(row.localPort);
+           console.log('isPortReachable',res)
+           if (! res ) {
+             row.isClose = 0
+             ElMessage.error('隧道建立失败')
+           }
+         }
+         isPortReachable()
+       }, 2000)
      }
     }
     console.log(startPipe())
@@ -150,7 +163,8 @@ const submit = () => {
     }
     const formDataJsonStr = JSON.stringify({
       index: editItemIndex,
-      row: form
+      row: form,
+      editableTabsValue: editableTabsValue.value
     })
     window.electronAPI.editPipe(formDataJsonStr);
   }
