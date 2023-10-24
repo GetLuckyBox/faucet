@@ -8,8 +8,8 @@ import net from 'net';
 import {fa} from "element-plus/es/locale";
 function createWindow () {
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1000,
+    height: 800,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -49,6 +49,8 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit()
+  const pipeFileGlobalPath = join(faucetConfigDir, 'closed.txt');
+  fs.writeFileSync(pipeFileGlobalPath, 'window-all-closed', 'utf8');
 });
 
 ipcMain.on('message', (event, message) => {
@@ -126,6 +128,7 @@ ipcMain.handle('editPipe', (event, item) => {
   let inlandContent = JSON.parse(fs.readFileSync(pipeFileInlandPath, 'utf8'));
 
   const editDate: any = JSON.parse(item);
+  console.log(editDate)
   let content = [];
   let otherContent = [];
   if (editDate.editableTabsValue === 'inland') {

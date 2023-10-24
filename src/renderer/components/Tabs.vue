@@ -42,7 +42,7 @@ const loadPipeJsonContent = async () => {
   }
   const content = await window.electronAPI.loadPipeJsonContent();
   (content as object[]).forEach((item: any) => {
-    const temp = Object.assign({isClose: 0}, item);
+    const temp = Object.assign({isClose: "0"}, item);
     (areaList.value as object[]).forEach((areaItem:any) => {
       if (areaItem.label == temp.area) {
         areaItem.tableData.push(temp)
@@ -59,7 +59,6 @@ let editItemIndex = 0
 let dialogFormVisible = ref(false)
 let dialogEnvVisible = ref(false)
 let dialogFormTitle = ref('新增隧道')
-
 const handleEdit = (props: any) => {
   if (props.row.isClose == 1) {
     errorTips('隧道开启中不可编辑');
@@ -77,7 +76,6 @@ const handleEdit = (props: any) => {
   form.remark = row.remark
   dialogFormVisible.value = true
 }
-
 const errorTips = (msg: string) => {
   ElMessage({
     showClose: true,
@@ -85,7 +83,6 @@ const errorTips = (msg: string) => {
     type: 'error',
   })
 }
-
 const handleDel = (props: any) => {
   // 隧道开启中不可删除
   if (props.row.isClose == 1) {
@@ -100,8 +97,9 @@ const handleDel = (props: any) => {
   }));
   loadPipeJsonContent()
 }
-
 const handlePipe = (row: any) => {
+  console.log(areaList)
+  console.log(row)
   const pipeConfigJsonStr = JSON.stringify(row)
   if (row.isClose == 1) {
     const startPipe = async () => {
@@ -172,13 +170,32 @@ const submit = () => {
   dialogFormTitle.value = '新增隧道'
   dialogFormVisible.value = false
 }
-
+const openAllPipe = () => {
+  for (const areaKey in areaList.value) {
+    for (const key in (areaList.value[areaKey] as object).tableData) {
+      if (areaList.value[areaKey].tableData[key].isClose != "1") {
+        areaList.value[areaKey].tableData[key].isClose = "1"
+      }
+    }
+  }
+}
+const closeAllPipe = () => {
+  for (const areaKey in areaList.value) {
+    for (const key in (areaList.value[areaKey] as object).tableData) {
+      if (areaList.value[areaKey].tableData[key].isClose != "0") {
+        areaList.value[areaKey].tableData[key].isClose = "0"
+      }
+    }
+  }
+}
 const formLabelWidth = '80px'
 </script>
 
 <template>
   <el-button type="primary" @click="dialogFormVisible = true">新增隧道</el-button>
   <el-button type="primary" @click="dialogEnvVisible = true">socket5</el-button>
+  <el-button type="primary" @click=openAllPipe()>一键开启</el-button>
+  <el-button type="primary" @click=closeAllPipe()>一键关闭</el-button>
   <el-dialog v-model="dialogFormVisible" :title=dialogFormTitle>
     <el-form :model="form">
       <el-form-item label="本地端口" :label-width="formLabelWidth">
@@ -221,9 +238,14 @@ const formLabelWidth = '80px'
     <el-table :data="areaData" style="width: 100%" max-height="250">
       <el-table-column prop="name" label="名称" />
       <el-table-column prop="socks5Address" label="socks5" />
+      <el-table-column fixed="right" align="center" label="操作" width="200px">
+        <template v-slot="props">
+          <el-button type="primary" @click="dialogFormVisible = true">ping百度</el-button>
+        </template>
+      </el-table-column>
     </el-table>
   </el-dialog>
-  <el-tabs v-model="editableTabsValue" type="card">
+  <el-tabs v-model="editableTabsValue" type="card"  style="margin-top: 15px">
     <el-tab-pane
         v-for="item in areaList"
         :key="item.value"
@@ -258,7 +280,7 @@ const formLabelWidth = '80px'
         <el-table-column prop="area" label="区域" />
         <el-table-column prop="remark" label="备注" />
         <el-table-column fixed="right" align="center" label="操作" width="200px">
-          <template #default="props">
+          <template v-slot="props">
             <el-switch
                 v-model="props.row.isClose"
                 size="small"
