@@ -59,6 +59,8 @@ let editItemIndex = 0
 let dialogFormVisible = ref(false)
 let dialogEnvVisible = ref(false)
 let dialogFormTitle = ref('新增隧道')
+let openAllDisabled = ref(false)
+let closeAllDisabled = ref(false)
 const handleEdit = (props: any) => {
   if (props.row.isClose == 1) {
     errorTips('隧道开启中不可编辑');
@@ -98,11 +100,10 @@ const handleDel = (props: any) => {
   loadPipeJsonContent()
 }
 const handlePipe = (row: any) => {
-  console.log(areaList)
-  console.log(row)
   const pipeConfigJsonStr = JSON.stringify(row)
-  if (row.isClose == 1) {
+  if (row.isClose == '1') {
     const startPipe = async () => {
+      console.log(pipeConfigJsonStr)
      const res = await window.electronAPI.startPipe(pipeConfigJsonStr);
      console.log('startPipe res', res)
      if (!res) {
@@ -171,22 +172,36 @@ const submit = () => {
   dialogFormVisible.value = false
 }
 const openAllPipe = () => {
-  for (const areaKey in areaList.value) {
-    for (const key in (areaList.value[areaKey] as object).tableData) {
+  closeAllDisabled.value = true
+  openAllDisabled.value = true
+  for (const areaKey in (areaList.value as object[])) {
+    for (const key in areaList.value[areaKey].tableData) {
       if (areaList.value[areaKey].tableData[key].isClose != "1") {
         areaList.value[areaKey].tableData[key].isClose = "1"
+        handlePipe(areaList.value[areaKey].tableData[key])
       }
     }
   }
+  setTimeout(()=> {
+    closeAllDisabled.value = false
+    openAllDisabled.value = false
+  },6000)
 }
 const closeAllPipe = () => {
+  closeAllDisabled.value = true
+  openAllDisabled.value = true
   for (const areaKey in areaList.value) {
     for (const key in (areaList.value[areaKey] as object).tableData) {
       if (areaList.value[areaKey].tableData[key].isClose != "0") {
         areaList.value[areaKey].tableData[key].isClose = "0"
+        handlePipe(areaList.value[areaKey].tableData[key])
       }
     }
   }
+  setTimeout(()=>{
+    closeAllDisabled.value = false
+    openAllDisabled.value = false
+  },5000)
 }
 const formLabelWidth = '80px'
 </script>
@@ -194,8 +209,8 @@ const formLabelWidth = '80px'
 <template>
   <el-button type="primary" @click="dialogFormVisible = true">新增隧道</el-button>
   <el-button type="primary" @click="dialogEnvVisible = true">socket5</el-button>
-  <el-button type="primary" @click=openAllPipe()>一键开启</el-button>
-  <el-button type="primary" @click=closeAllPipe()>一键关闭</el-button>
+  <el-button type="primary" @click=openAllPipe() :disabled="openAllDisabled">一键开启</el-button>
+  <el-button type="primary" @click=closeAllPipe() :disabled="closeAllDisabled">一键关闭</el-button>
   <el-dialog v-model="dialogFormVisible" :title=dialogFormTitle>
     <el-form :model="form">
       <el-form-item label="本地端口" :label-width="formLabelWidth">

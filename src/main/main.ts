@@ -48,15 +48,30 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit()
-  const pipeFileGlobalPath = join(faucetConfigDir, 'closed.txt');
-  fs.writeFileSync(pipeFileGlobalPath, 'window-all-closed', 'utf8');
+  // if (process.platform !== 'darwin') app.quit()
+  console.log(currentOpenLocalPort)
+  for (const port in currentOpenLocalPort) {
+    const pipePidFilePath = join(faucetConfigDir, port);
+    if (fs.existsSync(pipePidFilePath)) {
+      const pid = fs.readFileSync(pipePidFilePath, 'utf8')
+      log.info(pid)
+      if (parseInt(pid) > 0) {
+        log.info(`ps -ef | grep ${pid}  | grep ssh|awk '{print $2}'`)
+        const res = execSync(`ps -ef | grep ${pid}  | grep ssh|awk '{print $2}'|head -n 1`)
+        log.info('closePipe', res.toString())
+        log.info('kill ',pid)
+        process.kill(parseInt(pid))
+        fs.writeFileSync(pipePidFilePath, String(0), 'utf8');
+      }
+    }
+  }
+  currentOpenLocalPort = {}
 });
 
 ipcMain.on('message', (event, message) => {
   console.log(message);
 })
-
+let currentOpenLocalPort: any = {};
 const faucetConfigDir = join(os.homedir(), 'faucet');
 const pipeFilePath = join(faucetConfigDir, 'pipe.json');
 const pipeFileGlobalPath = join(faucetConfigDir, 'global.json');
@@ -174,6 +189,12 @@ ipcMain.handle('isPortReachable', (event, item:any) => {
   return isPortReachable(localPort).then((reachable) => {
     if (reachable) {
       console.log(`Port ${localPort}  is reachable.`);
+      if (currentOpenLocalPort[localPort] == 1) {
+        console.log(`localPort ${localPort}  is already open.`);
+        return false
+      }
+      currentOpenLocalPort[localPort] = 1
+      console.log(currentOpenLocalPort)
       return true
     } else {
       console.log(`Port ${localPort}  is not reachable.`);
@@ -265,6 +286,7 @@ ipcMain.handle('startPipe', (event, item) => {
         return false
       }
       try {
+        console.log("local port: " + localPort + " pid: " + pid + " pipePidFilePath: " + pipePidFilePath);
         fs.writeFileSync(pipePidFilePath, String(pid), 'utf8');
       } catch (err) {
         log.error('创建文件时出错：', err);
@@ -290,8 +312,9 @@ ipcMain.handle('closePipe', (event, item) => {
       // todo 需要判断进程的cmd是否满足删除条件
       log.info('kill ',pid)
       if (res.toString()) {
-        process.kill(parseInt(pid))
+        delete currentOpenLocalPort[pipeConfig.localPort]
       }
+      process.kill(parseInt(pid))
       fs.writeFileSync(pipePidFilePath, String(0), 'utf8');
     }
   }
