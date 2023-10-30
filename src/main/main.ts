@@ -126,15 +126,22 @@ ipcMain.handle('loadPipeJsonContent', () => {
 })
 
 ipcMain.handle('addPipe', (event, item) => {
-  let configFile = '';
-  if (item.area == 'inland') {
-    configFile = pipeFileInlandPath;
-  } else {
-    configFile = pipeFileGlobalPath;
+console.log(item)
+  try {
+    let configFile = '';
+    if (item.area == 'inland') {
+      configFile = pipeFileInlandPath;
+    } else {
+      configFile = pipeFileGlobalPath;
+    }
+    let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    console.log(item);
+    (content as object[]).push(JSON.parse(item));
+    fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
+  } catch (e) {
+    console.log(e)
   }
-  let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-  (content as object[]).push(JSON.parse(item));
-  fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
+
   return true;
 })
 
@@ -179,7 +186,7 @@ ipcMain.handle('delPipe', (event, item:any) => {
   }
   let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   (content as object[]).splice(item.index, 1);
-  console.log('del config')
+  console.log('del config',content)
   fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
   return true
 })
@@ -211,12 +218,12 @@ function isPortReachable(port) {
     const socket = new net.Socket();
     socket.setTimeout(2000);
     socket.on('error', (error) => {
-      log.info('isPortReachable')
-      log.error(error)
+      console.log('isPortReachable: ', error)
       socket.destroy();
       resolve(false);
     });
-    socket.on('timeout', () => {
+    socket.on('timeout', (error) => {
+      console.log('timeout: ', error)
       socket.destroy();
       resolve(false);
     });
@@ -267,6 +274,8 @@ ipcMain.handle('startPipe', (event, item) => {
   if (socket5 == '') {
     return false
   }
+  // for /f %i in ('netstat -ano|findstr 270|findstr TCP |findstr "0.0.0"') do echo %i
+  // netstat -ano|findstr 3400 taskkill /PID 32568 /F
   const localPort = pipeConfig.localPort;
   const remoteAddress = pipeConfig.remoteAddress;
   const jumpAddress = pipeConfig.jumpAddress;
@@ -277,8 +286,27 @@ ipcMain.handle('startPipe', (event, item) => {
     }
     let cmd = 'ls';
     if (os.platform() !== 'win32') {
+      const res = execSync(`ps -ef | grep ${localPort}  | grep ssh|awk '{print $2}'|head -n 1`)
+      // process.kill(parseInt(pid))
       cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
     } else {
+      try {
+        const res = execSync(`netstat -ano| findstr  LISTENING |findstr ${localPort} | findstr TCP | findstr "0.0.0"`)
+        console.log(res.toString())
+        const lineList = res.toString().split("\r\n")
+        for (const line in lineList) {
+          const lineContent = lineList[line].split(" ")
+          const killPid = lineContent[lineContent.length - 1]
+          if (parseInt(killPid) > 0) {
+            process.kill(parseInt(killPid))
+          }
+        }
+      } catch (e) {
+        console.log(e)
+
+      }
+      // process.kill(parseInt(pid))
+      console.log(`ssh -vNL ${localPort}:${remoteAddress} ${jumpAddress}`)
       cmd = `ssh -o ProxyCommand="ncat --proxy-type socks5 --proxy ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
     }
     return execSshCommand(cmd).then((pid) => {
