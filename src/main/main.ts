@@ -84,7 +84,7 @@ ipcMain.handle('loadPipeJsonContent', () => {
       fs.mkdirSync(faucetConfigDir, { recursive: true });
       console.log('目录创建成功');
     } catch (error) {
-      console.log(error);
+      log.error(error);
     }
   }
 
@@ -92,7 +92,7 @@ ipcMain.handle('loadPipeJsonContent', () => {
     try {
       fs.writeFileSync(pipeFilePath, '[]', 'utf8');
     } catch (err) {
-      console.error('创建文件时出错：', err);
+      log.error('创建文件时出错：', err);
     }
   } else {
     const content = JSON.parse(fs.readFileSync(pipeFilePath, 'utf8'));
@@ -126,7 +126,6 @@ ipcMain.handle('loadPipeJsonContent', () => {
 })
 
 ipcMain.handle('addPipe', (event, item) => {
-console.log(item)
   try {
     let configFile = '';
     if (item.area == 'inland') {
@@ -135,11 +134,11 @@ console.log(item)
       configFile = pipeFileGlobalPath;
     }
     let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-    console.log(item);
+    log.info(item);
     (content as object[]).push(JSON.parse(item));
     fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
   } catch (e) {
-    console.log(e)
+    log.error(e)
   }
 
   return true;
@@ -178,7 +177,6 @@ ipcMain.handle('editPipe', (event, item) => {
 ipcMain.handle('delPipe', (event, item:any) => {
   item = JSON.parse(item);
   let configFile = '';
-  console.log(item)
   if (item.area == 'inland') {
     configFile = pipeFileInlandPath;
   } else {
@@ -186,7 +184,7 @@ ipcMain.handle('delPipe', (event, item:any) => {
   }
   let content = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   (content as object[]).splice(item.index, 1);
-  console.log('del config',content)
+  log.error('del config',content)
   fs.writeFileSync(configFile, JSON.stringify(content), 'utf8');
   return true
 })
@@ -286,13 +284,15 @@ ipcMain.handle('startPipe', (event, item) => {
     }
     let cmd = 'ls';
     if (os.platform() !== 'win32') {
-      const res = execSync(`ps -ef | grep ${localPort}  | grep ssh|awk '{print $2}'|head -n 1`)
-      // process.kill(parseInt(pid))
+      try {
+        execSync(`lsof -i:${localPort}|grep TCP|awk '{print $2}'|sort|uniq|xargs kill`)
+      } catch (e) {
+        log.error(e)
+      }
       cmd = `ssh -o ProxyCommand="nc -x ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
     } else {
       try {
         const res = execSync(`netstat -ano| findstr  LISTENING |findstr ${localPort} | findstr TCP | findstr "0.0.0"`)
-        console.log(res.toString())
         const lineList = res.toString().split("\r\n")
         for (const line in lineList) {
           const lineContent = lineList[line].split(" ")
@@ -302,11 +302,8 @@ ipcMain.handle('startPipe', (event, item) => {
           }
         }
       } catch (e) {
-        console.log(e)
-
+        log.error(e)
       }
-      // process.kill(parseInt(pid))
-      console.log(`ssh -vNL ${localPort}:${remoteAddress} ${jumpAddress}`)
       cmd = `ssh -o ProxyCommand="ncat --proxy-type socks5 --proxy ${socket5} %h %p" -vNL ${localPort}:${remoteAddress} ${jumpAddress}`;
     }
     return execSshCommand(cmd).then((pid) => {
