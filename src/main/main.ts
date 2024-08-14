@@ -214,7 +214,7 @@ ipcMain.handle('isPortReachable', (event, item:any) => {
 function isPortReachable(port) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
-    socket.setTimeout(2000);
+    socket.setTimeout(5000);
     socket.on('error', (error) => {
       console.log('isPortReachable: ', error)
       socket.destroy();

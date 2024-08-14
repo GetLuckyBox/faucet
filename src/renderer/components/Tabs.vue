@@ -120,7 +120,7 @@ const handlePipe = (row: any) => {
            }
          }
          isPortReachable()
-       }, 2000)
+       }, 6000)
      }
     }
     console.log(startPipe())
